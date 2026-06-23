@@ -195,32 +195,43 @@ def create_ad(data: CreateAd):
 @app.post("/send-message")
 def send_message(data: MessageCreate):
 
+    sender = data.sender_phone.strip()
+    receiver = data.receiver_phone.strip()
+
+    # ✅ normalize
+    if receiver.startswith("+91"):
+        receiver = receiver[3:]
+
+    receiver = receiver.replace(" ", "")
+
     supabase.table("messages").insert({
         "ad_id": data.ad_id,
-        "sender_phone": data.sender_phone,
-        "receiver_phone": data.receiver_phone,
+        "sender_phone": sender,
+        "receiver_phone": receiver,
         "message": data.message
     }).execute()
 
-    receiver = supabase.table("users") \
+    user = supabase.table("users") \
         .select("fcm_token") \
-        .eq("phone", data.receiver_phone) \
+        .eq("phone", receiver) \
         .single() \
         .execute()
 
-    fcm_token = receiver.data.get("fcm_token") if receiver.data else None
+    fcm_token = user.data.get("fcm_token") if user.data else None
+
+    print("Receiver:", receiver)
+    print("FCM Token:", fcm_token)
 
     if fcm_token:
         send_fcm_notification(
-            fcm_token,
+            fcm_token, # type: ignore
             "New Message",
             data.message,
             data.ad_id,
-            data.sender_phone
+            sender
         )
 
     return {"message": "Sent ✅"}
-
 
 @app.get("/messages/{phone}")
 def get_all_user_messages(phone: str):
