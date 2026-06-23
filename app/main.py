@@ -84,44 +84,51 @@ def home():
 @app.post("/send-otp")
 def send_otp(data: PhoneRequest):
 
+    phone = data.phone.strip()
+
+    if phone.startswith("+91"):
+        phone = phone[3:]
+
+    phone = phone.replace(" ", "")
+
     otp = generate_otp()
 
-    # ✅ Store OTP in Supabase
     supabase.table("otp_store").upsert({
-        "phone": data.phone,
+        "phone": phone,
         "otp": otp
     }).execute()
 
-    return {
-        "message": "OTP sent successfully",
-        "otp": otp
-    }
+    return {"message": "OTP sent successfully", "otp": otp}
 
 @app.post("/verify-otp")
 def verify_otp(data: OTPVerify):
 
-    # ✅ Get OTP from Supabase instead of memory
+    phone = data.phone.strip()
+
+    if phone.startswith("+91"):
+        phone = phone[3:]
+
+    phone = phone.replace(" ", "")
+
     otp_record = supabase.table("otp_store") \
         .select("otp") \
-        .eq("phone", data.phone) \
+        .eq("phone", phone) \
         .single() \
         .execute()
 
     stored_otp = otp_record.data["otp"] if otp_record.data else None
 
-    # ✅ Validate OTP
     if not stored_otp or stored_otp != data.otp:
         raise HTTPException(status_code=400, detail="Invalid OTP")
 
-    # ✅ Check if user exists
     user = supabase.table("users") \
         .select("*") \
-        .eq("phone", data.phone) \
+        .eq("phone", phone) \
         .execute()
 
     if not user.data:
         new_user = supabase.table("users").insert({
-            "phone": data.phone,
+            "phone": phone,
             "district": None,
             "latitude": None,
             "longitude": None,
@@ -131,15 +138,13 @@ def verify_otp(data: OTPVerify):
     else:
         user_data = user.data[0]
 
-    # ✅ Generate JWT token
-    token = create_token({"phone": data.phone})
+    token = create_token({"phone": phone})
 
     return {
         "message": "Login success",
         "token": token,
         "user": user_data
     }
-
 # ✅ Update FCM Token
 
 @app.post("/update-fcm")
