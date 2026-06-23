@@ -41,7 +41,7 @@ def send_fcm_notification(token: str, title: str, body: str, ad_id: str, sender_
         print("FIREBASE_CREDENTIALS not set!")
         return
 
-    credentials = service_account.Credentials.from_service_info(
+    credentials = service_account.Credentials.from_service_account_info(
         json.loads(firebase_json),
         scopes=SCOPES
     )
@@ -72,7 +72,6 @@ def send_fcm_notification(token: str, title: str, body: str, ad_id: str, sender_
 
     response = requests.post(url, headers=headers, json=payload)
     print("FCM Response:", response.status_code, response.text)
-
 # ---------------- ROOT ----------------
 
 @app.get("/")
