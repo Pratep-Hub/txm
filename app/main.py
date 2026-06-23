@@ -26,7 +26,6 @@ if not os.path.exists("uploads"):
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-fake_otp_store = {}
 
 FIREBASE_PROJECT_ID = os.getenv("FIREBASE_PROJECT_ID")
 
@@ -82,23 +81,43 @@ def home():
 
 
 # ---------------- AUTH ----------------
-
 @app.post("/send-otp")
 def send_otp(data: PhoneRequest):
-    otp = generate_otp()
-    fake_otp_store[data.phone] = otp
-    return {"message": "OTP sent successfully", "otp": otp}
 
+    otp = generate_otp()
+
+    # ✅ Store OTP in Supabase
+    supabase.table("otp_store").upsert({
+        "phone": data.phone,
+        "otp": otp
+    }).execute()
+
+    return {
+        "message": "OTP sent successfully",
+        "otp": otp
+    }
 
 @app.post("/verify-otp")
 def verify_otp(data: OTPVerify):
 
-    stored_otp = fake_otp_store.get(data.phone)
+    # ✅ Get OTP from Supabase instead of memory
+    otp_record = supabase.table("otp_store") \
+        .select("otp") \
+        .eq("phone", data.phone) \
+        .single() \
+        .execute()
 
+    stored_otp = otp_record.data["otp"] if otp_record.data else None
+
+    # ✅ Validate OTP
     if not stored_otp or stored_otp != data.otp:
         raise HTTPException(status_code=400, detail="Invalid OTP")
 
-    user = supabase.table("users").select("*").eq("phone", data.phone).execute()
+    # ✅ Check if user exists
+    user = supabase.table("users") \
+        .select("*") \
+        .eq("phone", data.phone) \
+        .execute()
 
     if not user.data:
         new_user = supabase.table("users").insert({
@@ -112,6 +131,7 @@ def verify_otp(data: OTPVerify):
     else:
         user_data = user.data[0]
 
+    # ✅ Generate JWT token
     token = create_token({"phone": data.phone})
 
     return {
@@ -119,7 +139,6 @@ def verify_otp(data: OTPVerify):
         "token": token,
         "user": user_data
     }
-
 
 # ✅ Update FCM Token
 
