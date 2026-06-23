@@ -4,6 +4,7 @@ from app.schemas import PhoneRequest, OTPVerify, CreateAd, MessageCreate, FCMUpd
 from app.database import supabase
 from app.utils import generate_otp
 from app.auth import create_token
+from fastapi.middleware.cors import CORSMiddleware  
 import uuid
 import shutil
 import os
