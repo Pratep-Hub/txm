@@ -21,10 +21,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-if not os.path.exists("uploads"):
-    os.makedirs("uploads")
+# if not os.path.exists("uploads"):
+#     os.makedirs("uploads")
 
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 FIREBASE_PROJECT_ID = os.getenv("FIREBASE_PROJECT_ID")
@@ -329,13 +329,17 @@ def get_single_ad(ad_id: str):
 @app.post("/upload-image")
 async def upload_image(image: UploadFile = File(...)):
 
-    file_location = f"uploads/{image.filename}"
+    file_bytes = await image.read()
+    file_name = f"{uuid.uuid4()}_{image.filename}"
 
-    with open(file_location, "wb") as buffer:
-        shutil.copyfileobj(image.file, buffer)
+    supabase.storage.from_("ad-images").upload(
+        file_name,
+        file_bytes
+    )
 
-    return {"image_url": f"/uploads/{image.filename}"}
+    public_url = supabase.storage.from_("ad-images").get_public_url(file_name)
 
+    return {"image_url": public_url}
 
 
     # ---------------- UPDATE PROFILE ----------------
